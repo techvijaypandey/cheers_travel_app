@@ -176,7 +176,7 @@ class _FlightSearchFormState extends State<FlightSearchForm> {
           ),
           const SizedBox(height: 16),
 
-          // Date Pickers - Refactored for KLM-like appearance
+          // Date Pickers
           Row(
             children: [
               Expanded(

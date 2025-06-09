@@ -54,6 +54,7 @@ class _AirportSelectionScreenState extends State<AirportSelectionScreen> {
             },
             displayStringForOption: (Airport airport) => '${airport.cityName}, ${airport.airportName} (${airport.airportCode}), ${airport.countryName}',
             onSelected: (Airport airport) {
+              FocusScope.of(context).unfocus();
               Navigator.pop(context, airport);
             },
             optionsViewBuilder: (BuildContext context, AutocompleteOnSelected<Airport> onSelected, Iterable<Airport> options) {
