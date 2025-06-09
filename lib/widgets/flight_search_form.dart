@@ -3,6 +3,7 @@ import 'package:cheers_travel_app/models/airport.dart';
 import 'package:cheers_travel_app/widgets/airport_input_field.dart';
 import 'package:intl/intl.dart'; // For date formatting
 import 'package:cheers_travel_app/widgets/passenger_selection_sheet.dart';
+import 'package:cheers_travel_app/widgets/class_selection_sheet.dart';
 
 enum TravelType {
   oneWay,
@@ -29,6 +30,7 @@ class _FlightSearchFormState extends State<FlightSearchForm> {
   int _children = 0;
   int _infants = 0;
   String _class = 'Economy';
+  CabinClass _selectedClass = CabinClass.economy;
 
   final GlobalKey<AirportInputFieldState> _fromAirportKey = GlobalKey();
   final GlobalKey<AirportInputFieldState> _toAirportKey = GlobalKey();
@@ -80,6 +82,22 @@ class _FlightSearchFormState extends State<FlightSearchForm> {
     );
   }
 
+  void _showClassSelection() {
+    showModalBottomSheet(
+      context: context,
+      isScrollControlled: true,
+      backgroundColor: Colors.transparent,
+      builder: (context) => ClassSelectionSheet(
+        selectedClass: _selectedClass,
+        onClassSelected: (cabinClass) {
+          setState(() {
+            _selectedClass = cabinClass;
+          });
+        },
+      ),
+    );
+  }
+
   Widget _buildPassengerSelection() {
     return GestureDetector(
       onTap: _showPassengerSelection,
@@ -122,6 +140,48 @@ class _FlightSearchFormState extends State<FlightSearchForm> {
     );
   }
 
+  Widget _buildClassSelection() {
+    return GestureDetector(
+      onTap: _showClassSelection,
+      child: Container(
+        padding: const EdgeInsets.all(16),
+        decoration: BoxDecoration(
+          color: Colors.white,
+          borderRadius: BorderRadius.circular(8),
+          border: Border.all(color: Colors.grey.shade300),
+        ),
+        child: Row(
+          children: [
+            const Icon(Icons.airline_seat_recline_normal, color: Colors.grey),
+            const SizedBox(width: 12),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  const Text(
+                    'Cabin Class',
+                    style: TextStyle(
+                      fontSize: 12,
+                      color: Colors.grey,
+                    ),
+                  ),
+                  Text(
+                    _selectedClass.title,
+                    style: const TextStyle(
+                      fontSize: 16,
+                      fontWeight: FontWeight.w500,
+                    ),
+                  ),
+                ],
+              ),
+            ),
+            const Icon(Icons.arrow_forward_ios, size: 16, color: Colors.grey),
+          ],
+        ),
+      ),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     return Container(
@@ -147,6 +207,8 @@ class _FlightSearchFormState extends State<FlightSearchForm> {
           _buildDateSelection(),
           const SizedBox(height: 16),
           _buildPassengerSelection(),
+          const SizedBox(height: 16),
+          _buildClassSelection(),
           const SizedBox(height: 24),
           SizedBox(
             width: double.infinity,
@@ -374,7 +436,7 @@ class _FlightSearchFormState extends State<FlightSearchForm> {
       print('Adults: $_adults');
       print('Children: $_children');
       print('Infants: $_infants');
-      print('Class: $_class');
+      print('Cabin Class: ${_selectedClass.title}');
     }
   }
 } 
