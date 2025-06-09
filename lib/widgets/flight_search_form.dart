@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:cheers_travel_app/models/airport.dart';
 import 'package:cheers_travel_app/widgets/airport_input_field.dart';
 import 'package:intl/intl.dart'; // For date formatting
+import 'package:cheers_travel_app/widgets/passenger_selection_sheet.dart';
 
 enum TravelType {
   oneWay,
@@ -38,19 +39,13 @@ class _FlightSearchFormState extends State<FlightSearchForm> {
   }
 
   // Helper for displaying passenger summary
-  String get _passengerSummary {
-    final passengers = <String>[];
-    if (_adults > 0) {
-      passengers.add('$_adults Adult');
-    }
-    if (_children > 0) {
-      passengers.add('$_children Child');
-    }
-    if (_infants > 0) {
-      passengers.add('$_infants Infant');
-    }
-    if (passengers.isEmpty) return 'Add passenger';
-    return passengers.join(', ');
+  String get _passengerText {
+    final total = _adults + _children + _infants;
+    final parts = <String>[];
+    if (_adults > 0) parts.add('$_adults Adult${_adults > 1 ? 's' : ''}');
+    if (_children > 0) parts.add('$_children Child${_children > 1 ? 'ren' : ''}');
+    if (_infants > 0) parts.add('$_infants Infant${_infants > 1 ? 's' : ''}');
+    return parts.join(', ');
   }
 
   void _swapAirports() {
@@ -65,293 +60,262 @@ class _FlightSearchFormState extends State<FlightSearchForm> {
     });
   }
 
+  void _showPassengerSelection() {
+    showModalBottomSheet(
+      context: context,
+      isScrollControlled: true,
+      backgroundColor: Colors.transparent,
+      builder: (context) => PassengerSelectionSheet(
+        initialAdults: _adults,
+        initialChildren: _children,
+        initialInfants: _infants,
+        onPassengersSelected: (adults, children, infants) {
+          setState(() {
+            _adults = adults;
+            _children = children;
+            _infants = infants;
+          });
+        },
+      ),
+    );
+  }
+
+  Widget _buildPassengerSelection() {
+    return GestureDetector(
+      onTap: _showPassengerSelection,
+      child: Container(
+        padding: const EdgeInsets.all(16),
+        decoration: BoxDecoration(
+          color: Colors.white,
+          borderRadius: BorderRadius.circular(8),
+          border: Border.all(color: Colors.grey.shade300),
+        ),
+        child: Row(
+          children: [
+            const Icon(Icons.people_outline, color: Colors.grey),
+            const SizedBox(width: 12),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  const Text(
+                    'Passengers',
+                    style: TextStyle(
+                      fontSize: 12,
+                      color: Colors.grey,
+                    ),
+                  ),
+                  Text(
+                    _passengerText,
+                    style: const TextStyle(
+                      fontSize: 16,
+                      fontWeight: FontWeight.w500,
+                    ),
+                  ),
+                ],
+              ),
+            ),
+            const Icon(Icons.arrow_forward_ios, size: 16, color: Colors.grey),
+          ],
+        ),
+      ),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
-    return Form(
-      key: _formKey,
+    return Container(
+      padding: const EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(16),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withOpacity(0.1),
+            blurRadius: 10,
+            offset: const Offset(0, 5),
+          ),
+        ],
+      ),
       child: Column(
-        crossAxisAlignment: CrossAxisAlignment.stretch,
+        mainAxisSize: MainAxisSize.min,
         children: [
-          // Travel Type Selection
-          SegmentedButton<TravelType>(
-            segments: const <ButtonSegment<TravelType>>[
-              ButtonSegment<TravelType>(
-                value: TravelType.roundTrip,
-                label: Text('Round-Trip'),
-                icon: Icon(Icons.loop),
-              ),
-              ButtonSegment<TravelType>(
-                value: TravelType.oneWay,
-                label: Text('One-Way'),
-                icon: Icon(Icons.arrow_forward),
-              ),
-              ButtonSegment<TravelType>(
-                value: TravelType.multiCity,
-                label: Text('Multi-city'),
-                icon: Icon(Icons.multiple_stop),
-              ),
-            ],
-            selected: <TravelType>{_travelType},
-            onSelectionChanged: (Set<TravelType> newSelection) {
-              setState(() {
-                _travelType = newSelection.first;
-                if (_travelType == TravelType.oneWay) {
-                  _returnDate = null;
-                }
-              });
-            },
-            style: ButtonStyle(
-              backgroundColor: MaterialStateProperty.resolveWith<Color>(
-                (Set<MaterialState> states) {
-                  if (states.contains(MaterialState.selected)) {
-                    return Theme.of(context).colorScheme.primary; // Selected color (should be blue)
-                  }
-                  return Theme.of(context).colorScheme.surfaceVariant; // Unselected color, slightly grey
-                },
-              ),
-              foregroundColor: MaterialStateProperty.resolveWith<Color>(
-                (Set<MaterialState> states) {
-                  if (states.contains(MaterialState.selected)) {
-                    return Colors.white; // Selected text color
-                  }
-                  return Theme.of(context).colorScheme.onSurface; // Unselected text color
-                },
-              ),
-              shape: MaterialStateProperty.all<RoundedRectangleBorder>(
-                RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(8),
-                ),
-              ),
-              side: MaterialStateProperty.all<BorderSide>(BorderSide.none),
-            ),
-          ),
+          _buildTravelTypeSelector(),
           const SizedBox(height: 16),
-
-          // From Airport and To Airport with Swap Button
-          Stack(
-            children: [
-              Column(
-                children: [
-                  AirportInputField(
-                    key: _fromAirportKey,
-                    labelText: 'From',
-                    hintText: 'Enter departure city or airport',
-                    icon: Icons.flight_takeoff,
-                    initialAirport: _fromAirport,
-                    onAirportSelected: (airport) {
-                      setState(() {
-                        _fromAirport = airport;
-                      });
-                    },
-                  ),
-                  const SizedBox(height: 16),
-                  AirportInputField(
-                    key: _toAirportKey,
-                    labelText: 'To',
-                    hintText: 'Enter arrival city or airport',
-                    icon: Icons.flight_land,
-                    initialAirport: _toAirport,
-                    onAirportSelected: (airport) {
-                      setState(() {
-                        _toAirport = airport;
-                      });
-                    },
-                  ),
-                ],
-              ),
-              Positioned(
-                right: 0,
-                left: 0,
-                top: 70, // Adjust position as needed
-                child: CircleAvatar(
-                  radius: 20,
-                  backgroundColor: Theme.of(context).colorScheme.surface,
-                  child: IconButton(
-                    icon: Icon(Icons.swap_vert, color: Theme.of(context).colorScheme.primary),
-                    onPressed: _swapAirports,
-                  ),
-                ),
-              ),
-            ],
-          ),
+          _buildAirportSelection(),
           const SizedBox(height: 16),
-
-          // Date Pickers
-          Row(
-            children: [
-              Expanded(
-                child: _buildDatePickerField(
-                  labelText: 'Departure',
-                  date: _departureDate,
-                  onTap: () async {
-                    final date = await showDatePicker(
-                      context: context,
-                      initialDate: _departureDate ?? DateTime.now(),
-                      firstDate: DateTime.now(),
-                      lastDate: DateTime.now().add(const Duration(days: 365 * 2)), // 2 years from now
-                    );
-                    if (date != null) {
-                      setState(() {
-                        _departureDate = date;
-                        if (_returnDate != null && _returnDate!.isBefore(_departureDate!)) {
-                          _returnDate = null;
-                        }
-                      });
-                    }
-                  },
-                ),
-              ),
-              if (_travelType == TravelType.roundTrip) ...[
-                const SizedBox(width: 16),
-                Expanded(
-                  child: _buildDatePickerField(
-                    labelText: 'Return',
-                    date: _returnDate,
-                    onTap: () async {
-                      final date = await showDatePicker(
-                        context: context,
-                        initialDate: _returnDate ?? _departureDate ?? DateTime.now(),
-                        firstDate: _departureDate ?? DateTime.now(),
-                        lastDate: DateTime.now().add(const Duration(days: 365 * 2)),
-                      );
-                      if (date != null) {
-                        setState(() => _returnDate = date);
-                      }
-                    },
-                  ),
-                ),
-              ],
-            ],
-          ),
+          _buildDateSelection(),
           const SizedBox(height: 16),
-
-          // Consolidated Passenger Selection
-          InkWell(
-            onTap: () async {
-              await showModalBottomSheet(
-                context: context,
-                builder: (BuildContext context) {
-                  return StatefulBuilder(
-                    builder: (BuildContext context, StateSetter modalSetState) {
-                      return Container(
-                        padding: const EdgeInsets.all(16.0),
-                        child: Column(
-                          mainAxisSize: MainAxisSize.min,
-                          children: [
-                            Text(
-                              'Select Passengers',
-                              style: Theme.of(context).textTheme.headlineSmall,
-                            ),
-                            const SizedBox(height: 16),
-                            _buildPassengerSelector(
-                              'Adults',
-                              _adults,
-                              (count) => modalSetState(() => _adults = count),
-                              min: 1,
-                            ),
-                            _buildPassengerSelector(
-                              'Children',
-                              _children,
-                              (count) => modalSetState(() => _children = count),
-                            ),
-                            _buildPassengerSelector(
-                              'Infants',
-                              _infants,
-                              (count) => modalSetState(() => _infants = count),
-                            ),
-                            const SizedBox(height: 24),
-                            ElevatedButton(
-                              onPressed: () {
-                                setState(() {}); // Update main form state
-                                Navigator.pop(context);
-                              },
-                              child: const Text('Done'),
-                            ),
-                          ],
-                        ),
-                      );
-                    },
-                  );
-                },
-              );
-            },
-            child: InputDecorator(
-              decoration: InputDecoration(
-                labelText: 'Add passenger',
-                prefixIcon: const Icon(Icons.person_outline),
-                border: OutlineInputBorder(
-                  borderRadius: BorderRadius.circular(8),
-                ),
-                contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 16),
-              ),
-              child: Row(
-                children: [
-                  Icon(Icons.person, size: 20, color: Theme.of(context).colorScheme.primary),
-                  const SizedBox(width: 4),
-                  Text('$_adults', style: Theme.of(context).textTheme.titleMedium),
-                  const SizedBox(width: 8),
-                  Icon(Icons.child_care, size: 20, color: Theme.of(context).colorScheme.primary),
-                  const SizedBox(width: 4),
-                  Text('$_children', style: Theme.of(context).textTheme.titleMedium),
-                  const SizedBox(width: 8),
-                  Icon(Icons.baby_changing_station, size: 20, color: Theme.of(context).colorScheme.primary),
-                  const SizedBox(width: 4),
-                  Text('$_infants', style: Theme.of(context).textTheme.titleMedium),
-                ],
-              ),
-            ),
-          ),
-          const SizedBox(height: 16),
-
-          // Class Selection
-          DropdownButtonFormField<String>(
-            value: _class,
-            decoration: const InputDecoration(
-              labelText: 'Class',
-              prefixIcon: Icon(Icons.airline_seat_recline_normal),
-            ),
-            items: ['Economy', 'Business', 'First Class']
-                .map((String value) {
-                  return DropdownMenuItem<String>(
-                    value: value,
-                    child: Text(value),
-                  );
-                })
-                .toList(),
-            onChanged: (String? newValue) {
-              if (newValue != null) {
-                setState(() => _class = newValue);
-              }
-            },
-          ),
+          _buildPassengerSelection(),
           const SizedBox(height: 24),
-
-          // Search Button
-          ElevatedButton(
-            onPressed: () {
-              if (_formKey.currentState!.validate()) {
-                print('Searching flights...');
-                print('From: ${_fromAirport?.airportCode}');
-                print('To: ${_toAirport?.airportCode}');
-                print('Travel Type: $_travelType');
-                print('Departure Date: $_departureDate');
-                print('Return Date: $_returnDate');
-                print('Adults: $_adults');
-                print('Children: $_children');
-                print('Infants: $_infants');
-                print('Class: $_class');
-              }
-            },
-            child: const Padding(
-              padding: EdgeInsets.symmetric(vertical: 16.0),
-              child: Text(
-                'Search Flights',
-                style: TextStyle(fontSize: 16),
+          SizedBox(
+            width: double.infinity,
+            child: ElevatedButton(
+              onPressed: _onSearch,
+              style: ElevatedButton.styleFrom(
+                padding: const EdgeInsets.symmetric(vertical: 16),
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(8),
+                ),
               ),
+              child: const Text('Search Flights'),
             ),
           ),
         ],
       ),
+    );
+  }
+
+  Widget _buildTravelTypeSelector() {
+    return SegmentedButton<TravelType>(
+      segments: const <ButtonSegment<TravelType>>[
+        ButtonSegment<TravelType>(
+          value: TravelType.roundTrip,
+          label: Text('Round-Trip'),
+          icon: Icon(Icons.loop),
+        ),
+        ButtonSegment<TravelType>(
+          value: TravelType.oneWay,
+          label: Text('One-Way'),
+          icon: Icon(Icons.arrow_forward),
+        ),
+        ButtonSegment<TravelType>(
+          value: TravelType.multiCity,
+          label: Text('Multi-city'),
+          icon: Icon(Icons.multiple_stop),
+        ),
+      ],
+      selected: <TravelType>{_travelType},
+      onSelectionChanged: (Set<TravelType> newSelection) {
+        setState(() {
+          _travelType = newSelection.first;
+          if (_travelType == TravelType.oneWay) {
+            _returnDate = null;
+          }
+        });
+      },
+      style: ButtonStyle(
+        backgroundColor: MaterialStateProperty.resolveWith<Color>(
+          (Set<MaterialState> states) {
+            if (states.contains(MaterialState.selected)) {
+              return Theme.of(context).colorScheme.primary; // Selected color (should be blue)
+            }
+            return Theme.of(context).colorScheme.surfaceVariant; // Unselected color, slightly grey
+          },
+        ),
+        foregroundColor: MaterialStateProperty.resolveWith<Color>(
+          (Set<MaterialState> states) {
+            if (states.contains(MaterialState.selected)) {
+              return Colors.white; // Selected text color
+            }
+            return Theme.of(context).colorScheme.onSurface; // Unselected text color
+          },
+        ),
+        shape: MaterialStateProperty.all<RoundedRectangleBorder>(
+          RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(8),
+          ),
+        ),
+        side: MaterialStateProperty.all<BorderSide>(BorderSide.none),
+      ),
+    );
+  }
+
+  Widget _buildAirportSelection() {
+    return Stack(
+      children: [
+        Column(
+          children: [
+            AirportInputField(
+              key: _fromAirportKey,
+              labelText: 'From',
+              hintText: 'Enter departure city or airport',
+              icon: Icons.flight_takeoff,
+              initialAirport: _fromAirport,
+              onAirportSelected: (airport) {
+                setState(() {
+                  _fromAirport = airport;
+                });
+              },
+            ),
+            const SizedBox(height: 16),
+            AirportInputField(
+              key: _toAirportKey,
+              labelText: 'To',
+              hintText: 'Enter arrival city or airport',
+              icon: Icons.flight_land,
+              initialAirport: _toAirport,
+              onAirportSelected: (airport) {
+                setState(() {
+                  _toAirport = airport;
+                });
+              },
+            ),
+          ],
+        ),
+        Positioned(
+          right: 0,
+          left: 0,
+          top: 70, // Adjust position as needed
+          child: CircleAvatar(
+            radius: 20,
+            backgroundColor: Theme.of(context).colorScheme.surface,
+            child: IconButton(
+              icon: Icon(Icons.swap_vert, color: Theme.of(context).colorScheme.primary),
+              onPressed: _swapAirports,
+            ),
+          ),
+        ),
+      ],
+    );
+  }
+
+  Widget _buildDateSelection() {
+    return Row(
+      children: [
+        Expanded(
+          child: _buildDatePickerField(
+            labelText: 'Departure',
+            date: _departureDate,
+            onTap: () async {
+              final date = await showDatePicker(
+                context: context,
+                initialDate: _departureDate ?? DateTime.now(),
+                firstDate: DateTime.now(),
+                lastDate: DateTime.now().add(const Duration(days: 365 * 2)), // 2 years from now
+              );
+              if (date != null) {
+                setState(() {
+                  _departureDate = date;
+                  if (_returnDate != null && _returnDate!.isBefore(_departureDate!)) {
+                    _returnDate = null;
+                  }
+                });
+              }
+            },
+          ),
+        ),
+        if (_travelType == TravelType.roundTrip) ...[
+          const SizedBox(width: 16),
+          Expanded(
+            child: _buildDatePickerField(
+              labelText: 'Return',
+              date: _returnDate,
+              onTap: () async {
+                final date = await showDatePicker(
+                  context: context,
+                  initialDate: _returnDate ?? _departureDate ?? DateTime.now(),
+                  firstDate: _departureDate ?? DateTime.now(),
+                  lastDate: DateTime.now().add(const Duration(days: 365 * 2)),
+                );
+                if (date != null) {
+                  setState(() => _returnDate = date);
+                }
+              },
+            ),
+          ),
+        ],
+      ],
     );
   }
 
@@ -399,37 +363,18 @@ class _FlightSearchFormState extends State<FlightSearchForm> {
     );
   }
 
-  Widget _buildPassengerSelector(
-    String label,
-    int count,
-    ValueChanged<int> onChanged,
-    {int min = 0}
-  ) {
-    return Padding(
-      padding: const EdgeInsets.symmetric(vertical: 8.0),
-      child: Row(
-        children: [
-          Icon(label == 'Adults' ? Icons.person : (label == 'Children' ? Icons.child_care : Icons.baby_changing_station)),
-          const SizedBox(width: 16),
-          Text(label),
-          const Spacer(),
-          IconButton(
-            icon: const Icon(Icons.remove_circle_outline),
-            onPressed: () {
-              if (count > min) {
-                onChanged(count - 1);
-              }
-            },
-          ),
-          Text('$count', style: Theme.of(context).textTheme.titleMedium),
-          IconButton(
-            icon: const Icon(Icons.add_circle_outline),
-            onPressed: () {
-              onChanged(count + 1);
-            },
-          ),
-        ],
-      ),
-    );
+  void _onSearch() {
+    if (_formKey.currentState!.validate()) {
+      print('Searching flights...');
+      print('From: ${_fromAirport?.airportCode}');
+      print('To: ${_toAirport?.airportCode}');
+      print('Travel Type: $_travelType');
+      print('Departure Date: $_departureDate');
+      print('Return Date: $_returnDate');
+      print('Adults: $_adults');
+      print('Children: $_children');
+      print('Infants: $_infants');
+      print('Class: $_class');
+    }
   }
 } 
