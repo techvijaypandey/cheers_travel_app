@@ -11,10 +11,47 @@ class AirportSelectionScreen extends StatefulWidget {
 
 class _AirportSelectionScreenState extends State<AirportSelectionScreen> {
   final AirportService _airportService = AirportService();
+  final TextEditingController _searchController = TextEditingController();
+  List<Airport> _searchResults = [];
+  bool _isLoading = false;
+
+  @override
+  void initState() {
+    super.initState();
+    _searchController.addListener(_onSearchChanged);
+  }
 
   @override
   void dispose() {
+    _searchController.removeListener(_onSearchChanged);
+    _searchController.dispose();
     super.dispose();
+  }
+
+  Future<void> _onSearchChanged() async {
+    final query = _searchController.text;
+    if (query.isEmpty) {
+      setState(() {
+        _searchResults = [];
+      });
+      return;
+    }
+
+    setState(() {
+      _isLoading = true;
+    });
+
+    try {
+      final results = await _airportService.searchAirports(query);
+      setState(() {
+        _searchResults = results;
+        _isLoading = false;
+      });
+    } catch (e) {
+      setState(() {
+        _isLoading = false;
+      });
+    }
   }
 
   @override
@@ -27,59 +64,43 @@ class _AirportSelectionScreenState extends State<AirportSelectionScreen> {
       body: SafeArea(
         child: Padding(
           padding: const EdgeInsets.all(16.0),
-          child: Autocomplete<Airport>(
-            fieldViewBuilder: (
-              BuildContext context,
-              TextEditingController fieldTextEditingController,
-              FocusNode fieldFocusNode,
-              VoidCallback onFieldSubmitted,
-            ) {
-              return TextFormField(
-                controller: fieldTextEditingController,
-                focusNode: fieldFocusNode,
+          child: Column(
+            children: [
+              TextField(
+                controller: _searchController,
                 decoration: const InputDecoration(
                   labelText: 'Search airport or city',
                   hintText: 'e.g., Sydney or SYD',
                   prefixIcon: Icon(Icons.search),
                   border: OutlineInputBorder(),
                 ),
-              );
-            },
-            optionsBuilder: (TextEditingValue textEditingValue) async {
-              if (textEditingValue.text.isEmpty) {
-                return const Iterable<Airport>.empty();
-              }
-              final results = await _airportService.searchAirports(textEditingValue.text);
-              return results;
-            },
-            displayStringForOption: (Airport airport) => '${airport.cityName}, ${airport.airportName} (${airport.airportCode}), ${airport.countryName}',
-            onSelected: (Airport airport) {
-              FocusScope.of(context).unfocus();
-              Navigator.pop(context, airport);
-            },
-            optionsViewBuilder: (BuildContext context, AutocompleteOnSelected<Airport> onSelected, Iterable<Airport> options) {
-              print('Options received in optionsViewBuilder: ${options.length}');
-              print('First option if any: ${options.isNotEmpty ? options.first : "No options"}');
-              return Material(
-                  elevation: 4.0,
-                  child: ListView.builder(
-                      padding: EdgeInsets.zero,
-                      itemCount: options.length,
-                      itemBuilder: (BuildContext context, int index) {
-                        final Airport option = options.elementAt(index);
-                        print('Building list item for: ${option.airportName}');
-                        return GestureDetector(
-                          onTap: () {
-                            onSelected(option);
-                          },
-                          child: ListTile(
-                            title: Text(option.airportName),
-                          ),
-                        );
-                      },
-                    ),
-                );
-            },
+                autofocus: true,
+              ),
+              const SizedBox(height: 16),
+              Expanded(
+                child: _isLoading
+                    ? const Center(child: CircularProgressIndicator())
+                    : ListView.builder(
+                        itemCount: _searchResults.length,
+                        itemBuilder: (context, index) {
+                          final airport = _searchResults[index];
+                          return ListTile(
+                            title: Text(airport.airportName),
+                            subtitle: Text('${airport.cityName}, ${airport.countryName}'),
+                            trailing: Text(
+                              airport.airportCode,
+                              style: const TextStyle(
+                                fontWeight: FontWeight.bold,
+                              ),
+                            ),
+                            onTap: () {
+                              Navigator.pop(context, airport);
+                            },
+                          );
+                        },
+                      ),
+              ),
+            ],
           ),
         ),
       ),
