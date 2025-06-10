@@ -7,12 +7,14 @@ class FlightCard extends StatelessWidget {
   final FlightItinerary itinerary;
   final VoidCallback onSelect;
   final List<Airline> allAirlines;
+  final List<Airport> allAirports;
 
   const FlightCard({
     Key? key,
     required this.itinerary,
     required this.onSelect,
     required this.allAirlines,
+    required this.allAirports,
   }) : super(key: key);
 
   @override
@@ -38,14 +40,7 @@ class FlightCard extends StatelessWidget {
     return Card(
       margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
       child: InkWell(
-        onTap: () {
-          Navigator.push(
-            context,
-            MaterialPageRoute(
-              builder: (context) => FlightDetailsScreen(itinerary: itinerary),
-            ),
-          );
-        },
+        onTap: onSelect,
         child: Padding(
           padding: const EdgeInsets.all(16),
           child: Column(
@@ -169,32 +164,50 @@ class FlightCard extends StatelessWidget {
               Row(
                 mainAxisAlignment: MainAxisAlignment.spaceBetween,
                 children: [
-                  Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Text(
-                        'Available Seats: ${firstOutbound.noSeats}',
+                  Expanded(
+                    child: ElevatedButton(
+                      onPressed: onSelect,
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: Colors.blueAccent,
+                        padding: const EdgeInsets.symmetric(vertical: 12),
+                        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+                      ),
+                      child: Text(
+                        'AUD ${itinerary.fareInfo.baseFare.toStringAsFixed(2)}',
                         style: const TextStyle(
-                          fontSize: 14,
-                          color: Colors.green,
+                          fontSize: 20,
+                          fontWeight: FontWeight.bold,
+                          color: Colors.white,
                         ),
                       ),
-                      const SizedBox(height: 4),
-                      Text(
-                        'Fare Type: ${itinerary.fareType}',
-                        style: const TextStyle(
-                          fontSize: 14,
-                          color: Colors.grey,
-                        ),
-                      ),
-                    ],
+                    ),
                   ),
-                  Text(
-                    'AUD ${itinerary.fareInfo.baseFare.toStringAsFixed(2)}',
-                    style: const TextStyle(
-                      fontSize: 20,
-                      fontWeight: FontWeight.bold,
-                      color: Colors.blue,
+                  const SizedBox(width: 8),
+                  SizedBox(
+                    width: 100,
+                    child: OutlinedButton(
+                      onPressed: () {
+                        Navigator.push(
+                          context,
+                          MaterialPageRoute(
+                            builder: (context) => FlightDetailsScreen(
+                              itinerary: itinerary,
+                              allAirports: allAirports,
+                              allAirlines: allAirlines,
+                            ),
+                          ),
+                        );
+                      },
+                      style: OutlinedButton.styleFrom(
+                        foregroundColor: Colors.blueAccent,
+                        side: const BorderSide(color: Colors.blueAccent),
+                        padding: const EdgeInsets.symmetric(vertical: 12),
+                        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+                      ),
+                      child: const Text(
+                        'Details',
+                        style: TextStyle(fontSize: 16),
+                      ),
                     ),
                   ),
                 ],
@@ -225,18 +238,18 @@ class FlightCard extends StatelessWidget {
     final arrivalHour = int.parse(arrivalTimeParts[0]);
     final arrivalMinute = int.parse(arrivalTimeParts[1]);
     
-    // Calculate duration in minutes
-    int departureMinutes = departureHour * 60 + departureMinute;
-    int arrivalMinutes = arrivalHour * 60 + arrivalMinute;
-    
-    // Handle overnight flights
-    if (arrivalMinutes < departureMinutes) {
-      arrivalMinutes += 24 * 60; // Add 24 hours
+    // Create DateTime objects with dummy dates to calculate duration correctly, especially for overnight flights
+    DateTime departureDateTime = DateTime(2000, 1, 1, departureHour, departureMinute);
+    DateTime arrivalDateTime = DateTime(2000, 1, 1, arrivalHour, arrivalMinute);
+
+    if (arrivalDateTime.isBefore(departureDateTime)) {
+      arrivalDateTime = arrivalDateTime.add(const Duration(days: 1)); // Add 24 hours for overnight flights
     }
     
-    final durationMinutes = arrivalMinutes - departureMinutes;
-    final hours = durationMinutes ~/ 60;
-    final minutes = durationMinutes % 60;
+    final duration = arrivalDateTime.difference(departureDateTime);
+    
+    final hours = duration.inHours;
+    final minutes = duration.inMinutes % 60;
     
     return '${hours}h ${minutes}m';
   }

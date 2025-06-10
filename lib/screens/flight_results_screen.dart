@@ -347,6 +347,7 @@ class _FlightResultsScreenState extends State<FlightResultsScreen> {
                   return FlightCard(
                     itinerary: itinerary,
                     allAirlines: widget.searchResults.airlines,
+                    allAirports: widget.searchResults.airports,
                     onSelect: () {
                       // TODO: Handle flight selection
                     },
@@ -368,6 +369,7 @@ class _FlightResultsScreenState extends State<FlightResultsScreen> {
                   return FlightCard(
                     itinerary: itinerary,
                     allAirlines: widget.searchResults.airlines,
+                    allAirports: widget.searchResults.airports,
                     onSelect: () {
                       // TODO: Handle flight selection
                     },
