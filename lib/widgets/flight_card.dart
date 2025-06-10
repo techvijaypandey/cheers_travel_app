@@ -1,14 +1,18 @@
 import 'package:flutter/material.dart';
 import '../models/flight_search_response.dart';
+import 'package:intl/intl.dart';
+import '../screens/flight_details_screen.dart';
 
 class FlightCard extends StatelessWidget {
   final FlightItinerary itinerary;
   final VoidCallback onSelect;
+  final List<Airline> allAirlines;
 
   const FlightCard({
     Key? key,
     required this.itinerary,
     required this.onSelect,
+    required this.allAirlines,
   }) : super(key: key);
 
   @override
@@ -22,10 +26,26 @@ class FlightCard extends StatelessWidget {
     final lastOutbound = outboundSegments.last;
     final totalDuration = _calculateTotalDuration(outboundSegments);
 
+    final airline = allAirlines.firstWhere(
+      (element) => element.airlineCode == firstOutbound.airlineCode,
+      orElse: () => Airline(airlineCode: firstOutbound.airlineCode, airlineName: firstOutbound.airlineCode, airlineLogoPath: null),
+    );
+
+    final departureDate = DateFormat('dd-MM-yyyy').parse(firstOutbound.departure.date);
+    final arrivalDate = DateFormat('dd-MM-yyyy').parse(lastOutbound.arrival.date);
+    final isOvernight = arrivalDate.isAfter(departureDate);
+
     return Card(
       margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
       child: InkWell(
-        onTap: onSelect,
+        onTap: () {
+          Navigator.push(
+            context,
+            MaterialPageRoute(
+              builder: (context) => FlightDetailsScreen(itinerary: itinerary),
+            ),
+          );
+        },
         child: Padding(
           padding: const EdgeInsets.all(16),
           child: Column(
@@ -35,12 +55,26 @@ class FlightCard extends StatelessWidget {
               Row(
                 mainAxisAlignment: MainAxisAlignment.spaceBetween,
                 children: [
-                  Text(
-                    _getAirlineName(firstOutbound.airlineCode),
-                    style: const TextStyle(
-                      fontSize: 16,
-                      fontWeight: FontWeight.bold,
-                    ),
+                  Row(
+                    children: [
+                      if (airline.airlineLogoPath != null && airline.airlineLogoPath!.isNotEmpty)
+                        Padding(
+                          padding: const EdgeInsets.only(right: 8.0),
+                          child: Image.network(
+                            airline.airlineLogoPath!,
+                            height: 24,
+                            width: 24,
+                            errorBuilder: (context, error, stackTrace) => const Icon(Icons.flight_takeoff, size: 24),
+                          ),
+                        ),
+                      Text(
+                        airline.airlineName,
+                        style: const TextStyle(
+                          fontSize: 16,
+                          fontWeight: FontWeight.bold,
+                        ),
+                      ),
+                    ],
                   ),
                   Text(
                     'Duration: $totalDuration',
@@ -96,12 +130,25 @@ class FlightCard extends StatelessWidget {
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.end,
                       children: [
-                        Text(
-                          lastOutbound.arrival.time,
-                          style: const TextStyle(
-                            fontSize: 18,
-                            fontWeight: FontWeight.bold,
-                          ),
+                        Row(
+                          mainAxisAlignment: MainAxisAlignment.end,
+                          children: [
+                            Text(
+                              lastOutbound.arrival.time,
+                              style: const TextStyle(
+                                fontSize: 18,
+                                fontWeight: FontWeight.bold,
+                              ),
+                            ),
+                            if (isOvernight)
+                              const Text(
+                                ' +1 day',
+                                style: TextStyle(
+                                  fontSize: 12,
+                                  color: Colors.grey,
+                                ),
+                              ),
+                          ],
                         ),
                         Text(
                           lastOutbound.arrival.airportCode,
@@ -143,7 +190,7 @@ class FlightCard extends StatelessWidget {
                     ],
                   ),
                   Text(
-                    '${itinerary.fareInfo.baseFare.toStringAsFixed(2)}',
+                    'AUD ${itinerary.fareInfo.baseFare.toStringAsFixed(2)}',
                     style: const TextStyle(
                       fontSize: 20,
                       fontWeight: FontWeight.bold,
